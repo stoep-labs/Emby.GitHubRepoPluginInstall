@@ -315,9 +315,11 @@ internal class MainPageView : PluginPageView
                 BuildReleaseList();
 
                 var missing = releases.Count(x => x.Value == null);
-                PluginUiOptions.Logs = new CaptionItem(missing == 0
-                                                           ? $"Checked {releases.Count} repositories."
-                                                           : $"Checked {releases.Count} repositories, {missing} returned no release (see server log).")
+                var updates = PluginUiOptions.Repos.Count(r => r.UpdateAvailable);
+                var message = $"Checked {releases.Count} repositories: " +
+                              (updates == 0 ? "everything is up to date." : $"{updates} update(s) available.");
+                if (missing > 0) message += $" {missing} returned no release (see server log).";
+                PluginUiOptions.Logs = new CaptionItem(message)
                                        {
                                            IsVisible = true
                                        };
@@ -518,6 +520,9 @@ internal class MainPageView : PluginPageView
     {
         PluginUiOptions.Logs     = new CaptionItem("") { IsVisible = false };
         PluginUiOptions.Releases = ReleaseListBuilder.Build(PluginUiOptions.Repos);
+
+        var summary = ReleaseListBuilder.BuildSummary(PluginUiOptions.Repos);
+        PluginUiOptions.UpdatesBanner = new CaptionItem(summary ?? "") { IsVisible = summary != null };
     }
 
     /// <summary>Fetches the latest release for every repo concurrently and stores it on the repo.</summary>

@@ -31,6 +31,21 @@ public class ReposToProcess
     public bool            LatestHasDll        { get; set; }
     public string          LatestReleaseNotes  { get; set; }
 
+    public bool UpdateAvailable =>
+        LatestHasDll && !string.IsNullOrEmpty(LatestVersion) &&
+        !LatestVersion.Equals(LastVersionDownloaded, StringComparison.OrdinalIgnoreCase);
+
+    public string Status
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(LatestVersion)) return "Not checked";
+            if (UpdateAvailable) return "Update available";
+            if (!LatestVersion.Equals(LastVersionDownloaded, StringComparison.OrdinalIgnoreCase)) return "No DLL in latest release";
+            return "Up to date";
+        }
+    }
+
     public void ApplyLatestRelease(GitHubRelease release)
     {
         LastDateTimeChecked = DateTime.UtcNow;

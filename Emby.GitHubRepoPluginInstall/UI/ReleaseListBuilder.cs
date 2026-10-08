@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Emby.GitHubRepoPluginInstall.Models;
 using Emby.Web.GenericEdit.Elements;
 using Emby.Web.GenericEdit.Elements.List;
@@ -14,7 +15,8 @@ public static class ReleaseListBuilder
         var list = new GenericItemList();
         if (repos == null) return list;
 
-        foreach (var repo in repos)
+        // Updates first so they can't be missed
+        foreach (var repo in repos.OrderByDescending(r => r.UpdateAvailable))
         {
             if (string.IsNullOrEmpty(repo.LatestVersion))
             {
@@ -32,13 +34,14 @@ public static class ReleaseListBuilder
 
             var item = new GenericListItem
                        {
-                           PrimaryText = "Repo: " + repo.Repository,
-                           SecondaryText = "Version: "         +
-                                           repo.LatestVersion  +
-                                           Environment.NewLine +
-                                           "PreRelease: "      +
-                                           repo.LatestIsPreRelease,
-                           Icon     = IconNames.download,
+                           PrimaryText = "Repo: " + repo.Repository + " - " + repo.Status,
+                           SecondaryText = "Installed: "                   +
+                                           (repo.LastVersionDownloaded ?? "none") +
+                                           Environment.NewLine              +
+                                           "Latest: "                       +
+                                           repo.LatestVersion               +
+                                           (repo.LatestIsPreRelease ? " (pre-release)" : ""),
+                           Icon     = repo.UpdateAvailable ? IconNames.new_releases : IconNames.check_circle_outline,
                            IconMode = ItemListIconMode.LargeRegular,
                            SubItems = new GenericItemList
                                       {
@@ -55,7 +58,7 @@ public static class ReleaseListBuilder
             if (repo.LatestHasDll)
                 item.Button1 = new ButtonItem
                                {
-                                   Caption = "Download",
+                                   Caption = repo.UpdateAvailable ? "Install Update" : "Reinstall",
                                    Data1   = "Download",
                                    Data2   = repo.Id
                                };
@@ -64,5 +67,15 @@ public static class ReleaseListBuilder
         }
 
         return list;
+    }
+
+    /// <summary>One-line banner text when any repo has an update, otherwise <c>null</c>.</summary>
+    public static string BuildSummary(IEnumerable<ReposToProcess> repos)
+    {
+        var updates = repos?.Where(r => r.UpdateAvailable).ToList() ?? new List<ReposToProcess>();
+        if (updates.Count == 0) return null;
+
+        var names = string.Join(", ", updates.Select(r => $"{r.Repository} ({r.LastVersionDownloaded ?? "none"} -> {r.LatestVersion})"));
+        return $"{updates.Count} update{(updates.Count == 1 ? "" : "s")} available: {names}. Click \"Update All Plugins\" to install.";
     }
 }
