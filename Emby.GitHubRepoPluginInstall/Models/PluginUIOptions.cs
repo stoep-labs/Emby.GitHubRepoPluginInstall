@@ -322,4 +322,22 @@ public class PluginUIOptions : EditableOptionsBase
     [DisplayName("Releases")]
     [DontSave]
     public GenericItemList Releases { get; set; }
+
+    /// <summary>Points a self-update entry that still tracks the legacy upstream repo at the current one.</summary>
+    /// <returns><c>true</c> if an entry was changed and the options need saving.</returns>
+    public bool MigrateLegacySelfRepo()
+    {
+        var changed = false;
+        foreach (var repo in Repos ?? new List<ReposToProcess>())
+        {
+            if (!string.Equals(repo.Url?.Trim().TrimEnd('/'), GitHubRepPluginInstall.LegacyRepositoryUrl, System.StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            repo.Url = GitHubRepPluginInstall.RepositoryUrl;
+            repo.ClearLatestRelease();
+            changed = true;
+        }
+
+        return changed;
+    }
 }

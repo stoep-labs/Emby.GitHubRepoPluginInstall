@@ -55,6 +55,8 @@ public class UpdatePlugins : IScheduledTask, IConfigurableScheduledTask
         var applicationPaths = _applicationHost.Resolve<IApplicationPaths>();
 
         var pluginUiOptions = store.GetOptions();
+        if (pluginUiOptions.MigrateLegacySelfRepo())
+            _logger.Info($"Self-update entry moved to {GitHubRepPluginInstall.RepositoryUrl}");
 
         var totalCollections = pluginUiOptions.Repos.Count;
         var processedRepos   = 0;

@@ -1,4 +1,7 @@
 # GitHub Repo Plugin Installer
+
+> Maintained fork of [bakes82/Emby.GitHubRepoPluginInstall](https://github.com/bakes82/Emby.GitHubRepoPluginInstall).
+> Installs that still self-update from the original repo are moved to this fork automatically.
 This plugin allows you to install and manage Emby plugins from GitHub repositories. It automatically pulls the latest releases and installs them as long as there is a .DLL file in the assets. The plugin also supports automatic updates, plugin registries for easy discovery, and bulk operations.
 
 ## Features
@@ -154,4 +157,4 @@ Share the raw URL with others. They can add it by:
 - **Registry Not Loading**: Verify the registry URL returns valid JSON
 
 ### Support
-For issues, feature requests, or questions, please visit the [GitHub repository](https://github.com/bakes82/Emby.GitHubRepoPluginInstall) and create an issue.
+For issues, feature requests, or questions, please visit the [GitHub repository](https://github.com/stoep-labs/Emby.GitHubRepoPluginInstall) and create an issue.

@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    # Public repo: use GitHub-hosted runners, never the self-hosted stoep runner
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "8.0.x"
+
+      # Date-based version, same scheme as upstream (e.g. 2026.10.8.12) so versions keep increasing
+      - name: Compute version
+        run: |
+          VER="$(date -u +%Y.%-m.%-d).${{ github.run_number }}"
+          echo "VER=${VER}" >> "$GITHUB_ENV"
+          echo "TAG=v${VER}" >> "$GITHUB_ENV"
+
+      - name: Build
+        run: >
+          dotnet build Emby.GitHubRepoPluginInstall.sln -c Release
+          -p:Version=${VER} -p:AssemblyVersion=${VER} -p:FileVersion=${VER}
+          --verbosity minimal
+
+      - name: Test
+        run: dotnet test Emby.GitHubRepoPluginInstall.sln -c Release --no-build --verbosity minimal
+
+      - name: Upload plugin DLL artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: Emby.GitHubRepoPluginInstall
+          path: Emby.GitHubRepoPluginInstall/bin/Release/net8.0/Emby.GitHubRepoPluginInstall.dll
+          if-no-files-found: error
+
+      # The plugin self-updates from the latest release that has a .dll asset
+      - name: Publish GitHub Release
+        if: >-
+          (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+          github.ref == 'refs/heads/master'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          name: ${{ env.VER }}
+          target_commitish: ${{ github.sha }}
+          files: Emby.GitHubRepoPluginInstall/bin/Release/net8.0/Emby.GitHubRepoPluginInstall.dll
+          fail_on_unmatched_files: true
+          make_latest: true
+          generate_release_notes: true

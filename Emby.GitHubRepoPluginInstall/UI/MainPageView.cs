@@ -588,15 +588,20 @@ internal class MainPageView : PluginPageView
         // Only add self-update if it's the very first run (no repos at all)
         if (PluginUiOptions.Repos.Count == 0)
         {
-            var selfUrl = "https://github.com/bakes82/Emby.GitHubRepoPluginInstall";
             PluginUiOptions.Repos.Add(new ReposToProcess
             {
-                Url = selfUrl,
+                Url = GitHubRepPluginInstall.RepositoryUrl,
                 GetPreRelease = false,
                 AutoUpdate = true
             });
             _logger.Info("Added self-update entry for GitHub Plugin Installer");
             _store.SetOptions(PluginUiOptions);
+        }
+        else if (PluginUiOptions.MigrateLegacySelfRepo())
+        {
+            _logger.Info($"Self-update entry moved to {GitHubRepPluginInstall.RepositoryUrl}");
+            _store.SetOptions(PluginUiOptions);
+            ContentData = _store.GetOptions();
         }
     }
 }
