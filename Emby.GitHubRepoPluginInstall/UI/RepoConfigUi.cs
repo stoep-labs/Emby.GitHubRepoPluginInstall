@@ -58,8 +58,6 @@ public class RepoConfigUi : EditableOptionsBase
     [AutoPostBack("PluginSelected", nameof(SelectedPlugin))]
     public string SelectedPlugin { get; set; }
 
-    public SpacerItem Spacer1 { get; set; } = new SpacerItem();
-
     [DisplayName("GitHub Repo URL")]
     [Description("Enter the URL for the GitHub repository (or select from dropdown above)")]
     [Required]
