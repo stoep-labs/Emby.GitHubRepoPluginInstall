@@ -14,9 +14,16 @@ public class PluginUIOptions : EditableOptionsBase
     [DontSave]
     public override string EditorTitle => "Download Plugsin From GitHub";
 
+    // Emby caps plugin pages at 720px, which squeezes the grids; the style lifts the cap only on
+    // the container holding this marker so other plugin pages keep the default layout
+    internal const string WideLayoutStyle =
+        "<style id=\"ghrpi-wide\">" +
+        ".readOnlyContent:has(#ghrpi-wide),.readOnlyContent:has(#ghrpi-wide) form{max-width:none}" +
+        "</style>";
+
     [DontSave]
     public override string EditorDescription =>
-        "This plugin allows you to download and install plugins from GitHub repositories.";
+        "This plugin allows you to download and install plugins from GitHub repositories." + WideLayoutStyle;
 
     [DontSave]
     public CaptionItem UpdatesBanner { get; set; } = new CaptionItem("")
@@ -135,7 +142,7 @@ public class PluginUIOptions : EditableOptionsBase
             if (lastVersionDownloaded != null)
             {
                 lastVersionDownloaded.caption      = "Last Version Downloaded";
-                lastVersionDownloaded.width        = 150;
+                lastVersionDownloaded.width        = 190;
                 lastVersionDownloaded.visibleIndex = 9;
                 lastVersionDownloaded.visible      = true;
             }
@@ -145,7 +152,7 @@ public class PluginUIOptions : EditableOptionsBase
             if (latestVersion != null)
             {
                 latestVersion.caption      = "Latest Version";
-                latestVersion.width        = 150;
+                latestVersion.width        = 190;
                 latestVersion.visibleIndex = 10;
                 latestVersion.visible      = true;
             }
