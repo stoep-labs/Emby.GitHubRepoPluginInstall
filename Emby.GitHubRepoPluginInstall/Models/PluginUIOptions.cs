@@ -14,9 +14,16 @@ public class PluginUIOptions : EditableOptionsBase
     [DontSave]
     public override string EditorTitle => "Download Plugsin From GitHub";
 
+    // Emby caps plugin pages at 720px, which squeezes the grids; the style lifts the cap only on
+    // the container holding this marker so other plugin pages keep the default layout
+    internal const string WideLayoutStyle =
+        "<style id=\"ghrpi-wide\">" +
+        ".readOnlyContent:has(#ghrpi-wide),.readOnlyContent:has(#ghrpi-wide) form{max-width:none}" +
+        "</style>";
+
     [DontSave]
     public override string EditorDescription =>
-        "This plugin allows you to download and install plugins from GitHub repositories.";
+        "This plugin allows you to download and install plugins from GitHub repositories." + WideLayoutStyle;
 
     [DontSave]
     public CaptionItem UpdatesBanner { get; set; } = new CaptionItem("")
@@ -93,7 +100,8 @@ public class PluginUIOptions : EditableOptionsBase
             var options = new DxGridOptions(new ReposToProcess(), "Id", false, true, true, false);
 
             options.selection.mode         = DxGridSelection.SelectionMode.single;
-            options.columnResizingMode     = DxGridOptions.ColumnResizingMode.nextColumn;
+            options.columnResizingMode     = DxGridOptions.ColumnResizingMode.widget;
+            options.stateStoring           = GridStateStoring("repos");
             options.heightMode             = DxGridOptions.GridHeightMode.medium;
             options.allowColumnReordering  = true;
             options.grouping.autoExpandAll = true;
@@ -134,7 +142,7 @@ public class PluginUIOptions : EditableOptionsBase
             if (lastVersionDownloaded != null)
             {
                 lastVersionDownloaded.caption      = "Last Version Downloaded";
-                lastVersionDownloaded.width        = 150;
+                lastVersionDownloaded.width        = 190;
                 lastVersionDownloaded.visibleIndex = 9;
                 lastVersionDownloaded.visible      = true;
             }
@@ -144,7 +152,7 @@ public class PluginUIOptions : EditableOptionsBase
             if (latestVersion != null)
             {
                 latestVersion.caption      = "Latest Version";
-                latestVersion.width        = 150;
+                latestVersion.width        = 190;
                 latestVersion.visibleIndex = 10;
                 latestVersion.visible      = true;
             }
@@ -257,7 +265,8 @@ public class PluginUIOptions : EditableOptionsBase
             var options = new DxGridOptions(new PluginRegistry(), "Id", false, true, true, false);
 
             options.selection.mode         = DxGridSelection.SelectionMode.single;
-            options.columnResizingMode     = DxGridOptions.ColumnResizingMode.nextColumn;
+            options.columnResizingMode     = DxGridOptions.ColumnResizingMode.widget;
+            options.stateStoring           = GridStateStoring("registries");
             options.heightMode             = DxGridOptions.GridHeightMode.small;
             options.allowColumnReordering  = true;
             options.focusedRowEnabled      = true;
@@ -327,6 +336,15 @@ public class PluginUIOptions : EditableOptionsBase
     [DisplayName("Releases")]
     [DontSave]
     public GenericItemList Releases { get; set; }
+
+    // DevExtreme keeps column widths, order and sorting in the browser's localStorage under this key
+    private static object GridStateStoring(string grid) =>
+        new Dictionary<string, object>
+        {
+            ["enabled"]    = true,
+            ["type"]       = "localStorage",
+            ["storageKey"] = "GitHubRepoPluginInstall." + grid + "Grid"
+        };
 
     /// <summary>Points a self-update entry that still tracks the legacy upstream repo at the current one.</summary>
     /// <returns><c>true</c> if an entry was changed and the options need saving.</returns>
