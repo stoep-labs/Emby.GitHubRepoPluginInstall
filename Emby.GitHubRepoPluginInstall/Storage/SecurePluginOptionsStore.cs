@@ -33,6 +33,15 @@ public class SecurePluginOptionsStore : PluginOptionsStore
         return options;
     }
     
+    // Saving clears GitHubToken on the in-memory options, so callers holding those options read it through here
+    public string GetGitHubToken(PluginUIOptions options)
+    {
+        if (!string.IsNullOrEmpty(options.GitHubToken))
+            return options.GitHubToken;
+
+        return string.IsNullOrEmpty(options.EncryptedGitHubToken) ? null : _secureStorage.Unprotect(options.EncryptedGitHubToken);
+    }
+
     private void OnFileSaving(object sender, FileSavingEventArgs e)
     {
         if (e.Options is PluginUIOptions options)

@@ -55,6 +55,8 @@ public class UpdatePlugins : IScheduledTask, IConfigurableScheduledTask
         var applicationPaths = _applicationHost.Resolve<IApplicationPaths>();
 
         var pluginUiOptions = store.GetOptions();
+        if (pluginUiOptions.MigrateLegacySelfRepo())
+            _logger.Info($"Self-update entry moved to {GitHubRepPluginInstall.RepositoryUrl}");
 
         var totalCollections = pluginUiOptions.Repos.Count;
         var processedRepos   = 0;
@@ -62,12 +64,20 @@ public class UpdatePlugins : IScheduledTask, IConfigurableScheduledTask
 
         using var gitHubClient = new GitHubApiClient(pluginUiOptions.GitHubToken, _jsonSerializer, _logger);
 
-        foreach (var repo in pluginUiOptions.Repos.Where(x => x.AutoUpdate))
+        // Refresh release info for every repo (keeps the UI current without it calling GitHub);
+        // only AutoUpdate repos are downloaded and logged
+        foreach (var repo in pluginUiOptions.Repos)
         {
             try
             {
-                var release = await gitHubClient.GetLatestReleaseAsync(repo, cancellationToken).ConfigureAwait(false);
-                if (release == null)
+                var release = await gitHubClient.GetLatestReleaseAsync(repo, true, cancellationToken).ConfigureAwait(false);
+                repo.ApplyLatestRelease(release);
+
+                if (!repo.AutoUpdate)
+                {
+                    // Release info refreshed above; nothing to download
+                }
+                else if (release == null)
                 {
                     _activityManager.Create(new ActivityLogEntry
                                             {
@@ -83,10 +93,8 @@ public class UpdatePlugins : IScheduledTask, IConfigurableScheduledTask
                                                 UserId        = adminUser?.InternalId.ToString(),
                                                 Severity      = LogSeverity.Warn
                                             });
-                    continue;
                 }
-
-                if (!release.TagName.Equals(repo.LastVersionDownloaded, StringComparison.OrdinalIgnoreCase))
+                else if (!release.TagName.Equals(repo.LastVersionDownloaded, StringComparison.OrdinalIgnoreCase))
                 {
                     var fileName = await gitHubClient.DownloadReleaseAsync(release, applicationPaths.PluginsPath, null, cancellationToken).ConfigureAwait(false);
                     downloads++;
@@ -126,8 +134,6 @@ public class UpdatePlugins : IScheduledTask, IConfigurableScheduledTask
                                                 Severity      = LogSeverity.Info
                                             });
                 }
-
-                repo.LastDateTimeChecked = DateTime.UtcNow;
             }
             catch (UnauthorizedAccessException ex)
             {

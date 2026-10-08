@@ -18,6 +18,10 @@ public class GitHubRepPluginInstall : BasePlugin, IHasThumbImage, IHasUIPages, I
 {
     public static readonly string PluginName = "GitHub Repo Plugin Install";
 
+    // Self-update source. Installs that still track the original upstream repo are migrated to this one.
+    public const string RepositoryUrl       = "https://github.com/stoep-labs/Emby.GitHubRepoPluginInstall";
+    public const string LegacyRepositoryUrl = "https://github.com/bakes82/Emby.GitHubRepoPluginInstall";
+
     private readonly ILogger                       _logger;
     private readonly SecurePluginOptionsStore      _pluginOptionsStore;
     private readonly IServerApplicationHost        _applicationHost;
