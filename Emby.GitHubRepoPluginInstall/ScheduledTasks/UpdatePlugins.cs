@@ -70,12 +70,28 @@ public class UpdatePlugins : IScheduledTask, IConfigurableScheduledTask
         {
             try
             {
+                var previousLatest = repo.LatestVersion;
                 var release = await gitHubClient.GetLatestReleaseAsync(repo, true, cancellationToken).ConfigureAwait(false);
                 repo.ApplyLatestRelease(release);
 
                 if (!repo.AutoUpdate)
                 {
-                    // Release info refreshed above; nothing to download
+                    // Announce each new version once; the plugin page shows it until installed
+                    if (repo.UpdateAvailable && !repo.LatestVersion.Equals(previousLatest, StringComparison.OrdinalIgnoreCase))
+                        _activityManager.Create(new ActivityLogEntry
+                                                {
+                                                    Name          = $"Update available for {repo.Repository}: {repo.LatestVersion}",
+                                                    Overview      = Helpers.ActivityLogHelper.CreateInfoHtml(
+                                                        $"Update Available for {repo.Repository}",
+                                                        "Auto update is off. Install it from the GitHub Repo Plugin Install page.",
+                                                        $"Installed: {repo.LastVersionDownloaded ?? "none"}\nLatest: {repo.LatestVersion}\nRepository: {repo.Owner}/{repo.Repository}"),
+                                                    ShortOverview = null,
+                                                    Type          = "GithubRepoPluginUpdateAvailable",
+                                                    ItemId        = null,
+                                                    Date          = DateTimeOffset.Now,
+                                                    UserId        = adminUser?.InternalId.ToString(),
+                                                    Severity      = LogSeverity.Info
+                                                });
                 }
                 else if (release == null)
                 {
@@ -119,20 +135,7 @@ public class UpdatePlugins : IScheduledTask, IConfigurableScheduledTask
                 }
                 else
                 {
-                    _activityManager.Create(new ActivityLogEntry
-                                            {
-                                                Name          = $"Release for {repo.Repository} Already Up to Date",
-                                                Overview      = Helpers.ActivityLogHelper.CreateInfoHtml(
-                                                    $"Plugin {repo.Repository} is Up to Date",
-                                                    "No update required - you have the latest version.",
-                                                    $"Current Version: {repo.LastVersionDownloaded}\nRepository: {repo.Owner}/{repo.Repository}"),
-                                                ShortOverview = null,
-                                                Type          = "GithubRepoPluginUpdateFailed",
-                                                ItemId        = null,
-                                                Date          = DateTimeOffset.Now,
-                                                UserId        = adminUser?.InternalId.ToString(),
-                                                Severity      = LogSeverity.Info
-                                            });
+                    _logger.Info($"{repo.Repository} is up to date ({repo.LastVersionDownloaded})");
                 }
             }
             catch (UnauthorizedAccessException ex)
@@ -200,7 +203,7 @@ public class UpdatePlugins : IScheduledTask, IConfigurableScheduledTask
 
     public string Name        { get; } = "Update Plugins From Github Repos";
     public string Key         { get; } = nameof(UpdatePlugins);
-    public string Description { get; } = "Updates plugins that are marked auto update.";
+    public string Description { get; } = "Checks every repo for new releases and installs those marked auto update.";
     public string Category    { get; } = "Github Repo Plugins Update";
 
     private User GetAdminUser()

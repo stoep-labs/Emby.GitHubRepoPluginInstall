@@ -19,6 +19,12 @@ public class PluginUIOptions : EditableOptionsBase
         "This plugin allows you to download and install plugins from GitHub repositories.";
 
     [DontSave]
+    public CaptionItem UpdatesBanner { get; set; } = new CaptionItem("")
+                                                     {
+                                                         IsVisible = false
+                                                     };
+
+    [DontSave]
     public CaptionItem Logs { get; set; } = new CaptionItem("")
                                             {
                                                 IsVisible = false
@@ -118,6 +124,15 @@ public class PluginUIOptions : EditableOptionsBase
                 owner.visibleIndex = 7;
                 owner.groupIndex   = 0;
                 owner.visible      = true;
+            }
+
+            var status = options.columns.FirstOrDefault(e => e.dataField == nameof(ReposToProcess.Status));
+            if (status != null)
+            {
+                status.caption      = "Status";
+                status.width        = 150;
+                status.visibleIndex = 8;
+                status.visible      = true;
             }
 
             var lastVersionDownloaded =
