@@ -36,7 +36,7 @@ public static class ReleaseListBuilder
                        {
                            PrimaryText = "Repo: " + repo.Repository + " - " + repo.Status,
                            SecondaryText = "Installed: "                   +
-                                           (repo.LastVersionDownloaded ?? "none") +
+                                           (repo.InstalledVersion ?? repo.LastVersionDownloaded ?? "none") +
                                            Environment.NewLine              +
                                            "Latest: "                       +
                                            repo.LatestVersion               +
@@ -56,17 +56,36 @@ public static class ReleaseListBuilder
                        };
 
             if (repo.LatestHasDll)
-                item.Button1 = new ButtonItem
-                               {
-                                   Caption = repo.UpdateAvailable ? "Install Update" : "Reinstall",
-                                   Data1   = "Download",
-                                   Data2   = repo.Id
-                               };
+                item.Button1 = BuildInstallButton(repo);
 
             list.Add(item);
         }
 
         return list;
+    }
+
+    private static ButtonItem BuildInstallButton(ReposToProcess repo)
+    {
+        if (repo.InstalledIsNewer)
+            return new ButtonItem
+                   {
+                       Caption = "Install Older Version",
+                       Data1   = "Downgrade",
+                       Data2   = repo.Id,
+                       ConfirmationPrompt = $"{repo.Repository} {repo.InstalledVersion} is installed, which is newer than GitHub {repo.LatestVersion}. " +
+                                            "Replace it with the older GitHub version?"
+                   };
+
+        return new ButtonItem
+               {
+                   Caption = repo.UpdateAvailable ? "Install Update" : "Reinstall",
+                   Data1   = "Download",
+                   Data2   = repo.Id,
+                   ConfirmationPrompt = repo.ReplacesOtherFile
+                                            ? $"{repo.InstalledFileName} is already installed as {repo.InstalledName} {repo.InstalledVersion}. " +
+                                              $"Replace it with {repo.LatestDllName} from GitHub? The old file will be deleted."
+                                            : null
+               };
     }
 
     /// <summary>One-line banner text when any repo has an update, otherwise <c>null</c>.</summary>
@@ -75,7 +94,7 @@ public static class ReleaseListBuilder
         var updates = repos?.Where(r => r.UpdateAvailable).ToList() ?? new List<ReposToProcess>();
         if (updates.Count == 0) return null;
 
-        var names = string.Join(", ", updates.Select(r => $"{r.Repository} ({r.LastVersionDownloaded ?? "none"} -> {r.LatestVersion})"));
+        var names = string.Join(", ", updates.Select(r => $"{r.Repository} ({r.InstalledVersion ?? r.LastVersionDownloaded ?? "none"} -> {r.LatestVersion})"));
         return $"{updates.Count} update{(updates.Count == 1 ? "" : "s")} available: {names}. Click \"Update All Plugins\" to install.";
     }
 }

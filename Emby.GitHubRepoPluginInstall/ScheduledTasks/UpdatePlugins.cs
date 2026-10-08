@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
@@ -7,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Emby.GitHubRepoPluginInstall.GithubAPI;
 using Emby.GitHubRepoPluginInstall.Models;
+using Emby.GitHubRepoPluginInstall.Services;
 using Emby.GitHubRepoPluginInstall.Storage;
 using MediaBrowser.Common;
 using MediaBrowser.Common.Configuration;
@@ -63,6 +65,7 @@ public class UpdatePlugins : IScheduledTask, IConfigurableScheduledTask
         var downloads        = 0;
 
         using var gitHubClient = new GitHubApiClient(pluginUiOptions.GitHubToken, _jsonSerializer, _logger);
+        var installed = InstalledPlugin.Snapshot(_applicationHost);
 
         // Refresh release info for every repo (keeps the UI current without it calling GitHub);
         // only AutoUpdate repos are downloaded and logged
@@ -73,6 +76,7 @@ public class UpdatePlugins : IScheduledTask, IConfigurableScheduledTask
                 var previousLatest = repo.LatestVersion;
                 var release = await gitHubClient.GetLatestReleaseAsync(repo, true, cancellationToken).ConfigureAwait(false);
                 repo.ApplyLatestRelease(release);
+                repo.SetInstalled(InstalledPluginMatcher.Find(repo, installed));
 
                 if (!repo.AutoUpdate)
                 {
@@ -110,28 +114,20 @@ public class UpdatePlugins : IScheduledTask, IConfigurableScheduledTask
                                                 Severity      = LogSeverity.Warn
                                             });
                 }
-                else if (!release.TagName.Equals(repo.LastVersionDownloaded, StringComparison.OrdinalIgnoreCase))
+                else if (repo.InstalledIsNewer)
                 {
-                    var fileName = await gitHubClient.DownloadReleaseAsync(release, applicationPaths.PluginsPath, null, cancellationToken).ConfigureAwait(false);
-                    downloads++;
-                    repo.LastVersionDownloaded = release.TagName;
-                    repo.FileName              = fileName;
-
-                    _activityManager.Create(new ActivityLogEntry
-                                            {
-                                                Name = $"Plugin {repo.Repository} updated to {repo.LastVersionDownloaded}",
-                                                Overview = Helpers.ActivityLogHelper.CreateSuccessHtml(
-                                                    $"Plugin {repo.Repository} Successfully Updated",
-                                                    "Plugin has been downloaded and installed.",
-                                                    repo.LastVersionDownloaded,
-                                                    release.Body ?? release.GitHubCommit?.GitHubCommitDetails?.Message ?? "No release notes available."),
-                                                ShortOverview = null,
-                                                Type          = "PluginInstalled",
-                                                ItemId        = null,
-                                                Date          = DateTimeOffset.Now,
-                                                //UserId        = adminUser?.InternalId.ToString(),
-                                                Severity = LogSeverity.Info
-                                            });
+                    _logger.Info($"{repo.Repository}: installed {repo.InstalledVersion} is newer than GitHub {release.TagName}, not downgrading");
+                }
+                else if (repo.UpdateAvailable)
+                {
+                    var result = await ReleaseInstaller.InstallAsync(gitHubClient, release, repo, applicationPaths.PluginsPath, installed, false, _logger, cancellationToken)
+                                                       .ConfigureAwait(false);
+                    // Not installed when the DLL itself is older than what Emby runs; the installer logs that
+                    if (result.Installed)
+                    {
+                        downloads++;
+                        LogInstalled(repo, release, result.ReplacedFile);
+                    }
                 }
                 else
                 {
@@ -186,6 +182,40 @@ public class UpdatePlugins : IScheduledTask, IConfigurableScheduledTask
         if (downloads > 0 && pluginUiOptions.RestartServerAfterInstall)
             _applicationHost.Restart();
         else if (downloads > 0) _applicationHost.NotifyPendingRestart();
+    }
+
+    private void LogInstalled(ReposToProcess repo, GitHubRelease release, string replacedFile)
+    {
+        if (replacedFile != null)
+            _activityManager.Create(new ActivityLogEntry
+                                    {
+                                        Name          = $"Plugin {repo.Repository}: replaced {Path.GetFileName(replacedFile)}",
+                                        Overview      = Helpers.ActivityLogHelper.CreateInfoHtml(
+                                            $"Replaced {Path.GetFileName(replacedFile)}",
+                                            "The same plugin was installed under another file name; the old file was removed so only one copy loads.",
+                                            $"Removed: {replacedFile}\nInstalled: {repo.FileName} {repo.LastVersionDownloaded}"),
+                                        ShortOverview = null,
+                                        Type          = "PluginInstalled",
+                                        ItemId        = null,
+                                        Date          = DateTimeOffset.Now,
+                                        Severity      = LogSeverity.Info
+                                    });
+
+        _activityManager.Create(new ActivityLogEntry
+                                {
+                                    Name = $"Plugin {repo.Repository} updated to {repo.LastVersionDownloaded}",
+                                    Overview = Helpers.ActivityLogHelper.CreateSuccessHtml(
+                                        $"Plugin {repo.Repository} Successfully Updated",
+                                        "Plugin has been downloaded and installed.",
+                                        repo.LastVersionDownloaded,
+                                        release.Body ?? release.GitHubCommit?.GitHubCommitDetails?.Message ?? "No release notes available."),
+                                    ShortOverview = null,
+                                    Type          = "PluginInstalled",
+                                    ItemId        = null,
+                                    Date          = DateTimeOffset.Now,
+                                    //UserId        = adminUser?.InternalId.ToString(),
+                                    Severity = LogSeverity.Info
+                                });
     }
 
     public IEnumerable<TaskTriggerInfo> GetDefaultTriggers()

@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using Emby.GitHubRepoPluginInstall.GithubAPI;
 using Emby.GitHubRepoPluginInstall.Models;
+using Emby.GitHubRepoPluginInstall.Services;
 using Emby.GitHubRepoPluginInstall.Storage;
 using Emby.GitHubRepoPluginInstall.UIBaseClasses.Views;
 using Emby.Media.Common.Extensions;
@@ -67,6 +68,7 @@ internal class MainPageView : PluginPageView
             commandKey == "Edit"           ||
             commandKey == "Save"           ||
             commandKey == "Download"       ||
+            commandKey == "Downgrade"      ||
             commandKey == "UpdateAll"      ||
             commandKey == "CheckAll"       ||
             commandKey == "AddRegistry"    ||
@@ -79,12 +81,13 @@ internal class MainPageView : PluginPageView
 
     public override async Task<IPluginUIView> RunCommand(string itemId, string commandId, string data)
     {
-        if (commandId == "Download")
+        if (commandId == "Download" || commandId == "Downgrade")
         {
             var item = PluginUiOptions.Repos.Find(x => x.Id == itemId);
             if (item == null)
                 return this;
 
+            string message;
             try
             {
                 using var gitHubClient = new GitHubApiClient(_store.GetGitHubToken(PluginUiOptions), _jsonSerializer, _logger);
@@ -93,16 +96,26 @@ internal class MainPageView : PluginPageView
 
                 if (release == null)
                 {
-                    PluginUiOptions.Logs = new CaptionItem($"No release found for {item.Repository}") { IsVisible = true };
+                    message = $"No release found for {item.Repository}";
                 }
                 else
                 {
                     var applicationPaths = _appHost.Resolve<IApplicationPaths>();
-                    var fileName = await gitHubClient.DownloadReleaseAsync(release, applicationPaths.PluginsPath).ConfigureAwait(false);
-                    item.LastVersionDownloaded = release.TagName;
-                    item.FileName = fileName;
-                    _appHost.NotifyPendingRestart();
-                    PluginUiOptions.Logs = new CaptionItem($"Downloaded {item.Repository} {release.TagName}. Server restart required.") { IsVisible = true };
+                    var result = await ReleaseInstaller.InstallAsync(gitHubClient, release, item, applicationPaths.PluginsPath,
+                                                                     InstalledPlugin.Snapshot(_appHost), commandId == "Downgrade", _logger)
+                                                       .ConfigureAwait(false);
+
+                    if (result.SkippedNewerInstalled)
+                    {
+                        message = $"Not installed: {item.Repository} {result.InstalledVersion} is already installed, which is newer than GitHub {result.DownloadedVersion}.";
+                    }
+                    else
+                    {
+                        _appHost.NotifyPendingRestart();
+                        message = $"Downloaded {item.Repository} {release.TagName}" +
+                                  (result.ReplacedFile == null ? "" : $" and removed {Path.GetFileName(result.ReplacedFile)}") +
+                                  ". Server restart required.";
+                    }
                 }
 
                 _store.SetOptions(PluginUiOptions);
@@ -110,10 +123,11 @@ internal class MainPageView : PluginPageView
             catch (Exception ex)
             {
                 _logger.ErrorException($"Failed to download {item.Repository}", ex);
-                PluginUiOptions.Logs = new CaptionItem($"Error downloading {item.Repository}: {ex.Message}") { IsVisible = true };
+                message = $"Error downloading {item.Repository}: {ex.Message}";
             }
 
             BuildReleaseList();
+            PluginUiOptions.Logs = new CaptionItem(message) { IsVisible = true };
             return this;
         }
 
@@ -256,26 +270,20 @@ internal class MainPageView : PluginPageView
                 using var gitHubClient = new GitHubApiClient(_store.GetGitHubToken(PluginUiOptions), _jsonSerializer, _logger);
                 var applicationPaths = _appHost.Resolve<IApplicationPaths>();
                 var releases = await RefreshReleasesAsync(gitHubClient).ConfigureAwait(false);
+                var installed = InstalledPlugin.Snapshot(_appHost);
+                InstalledPluginMatcher.Apply(PluginUiOptions.Repos, installed);
 
                 foreach (var repo in PluginUiOptions.Repos.ToList())
                 {
                     var release = releases[repo];
-                    if (release == null || release.TagName.Equals(repo.LastVersionDownloaded, StringComparison.OrdinalIgnoreCase))
+                    if (release == null || !repo.UpdateAvailable)
                         continue;
-
-                    // Check if release has DLL assets before trying to download
-                    if (release.Assets?.Any(x => x.IsDll) != true)
-                    {
-                        _logger.Warn($"No DLL assets found for {repo.Repository} release {release.TagName}");
-                        continue;
-                    }
 
                     try
                     {
-                        var fileName = await gitHubClient.DownloadReleaseAsync(release, applicationPaths.PluginsPath).ConfigureAwait(false);
-                        repo.LastVersionDownloaded = release.TagName;
-                        repo.FileName = fileName;
-                        updatedCount++;
+                        var result = await ReleaseInstaller.InstallAsync(gitHubClient, release, repo, applicationPaths.PluginsPath, installed, false, _logger)
+                                                           .ConfigureAwait(false);
+                        if (result.Installed) updatedCount++;
                     }
                     catch (Exception downloadEx)
                     {
@@ -518,6 +526,8 @@ internal class MainPageView : PluginPageView
 
     private void BuildReleaseList()
     {
+        InstalledPluginMatcher.Apply(PluginUiOptions.Repos, InstalledPlugin.Snapshot(_appHost));
+
         PluginUiOptions.Logs     = new CaptionItem("") { IsVisible = false };
         PluginUiOptions.Releases = ReleaseListBuilder.Build(PluginUiOptions.Repos);
 
