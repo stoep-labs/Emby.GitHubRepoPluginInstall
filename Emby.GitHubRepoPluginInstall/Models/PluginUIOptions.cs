@@ -36,8 +36,6 @@ public class PluginUIOptions : EditableOptionsBase
                                                    IsVisible = false
                                                };
 
-    [DontSave]
-    public SpacerItem Spacer1 { get; set; } = new SpacerItem();
 
     [DontSave]
     public CaptionItem CaptionBasic { get; set; } = new CaptionItem("Basic Settings");
@@ -63,8 +61,6 @@ public class PluginUIOptions : EditableOptionsBase
             Data1   = "Save"
         };
 
-    [DontSave]
-    public SpacerItem Spacer1a { get; set; } = new SpacerItem();
 
     [DontSave]
     public ButtonItem Add =>
@@ -79,8 +75,6 @@ public class PluginUIOptions : EditableOptionsBase
     [DontSave]
     public IList<string> SelectedItemId { get; set; }
 
-    [DontSave]
-    public SpacerItem Spacer2 { get; set; } = new SpacerItem();
 
     [Browsable(false)]
     public List<ReposToProcess> Repos { get; set; } = new List<ReposToProcess>();
@@ -235,8 +229,6 @@ public class PluginUIOptions : EditableOptionsBase
             Data1   = "CheckAll"
         };
 
-    [DontSave]
-    public SpacerItem Spacer3 { get; set; } = new SpacerItem();
 
     [DontSave]
     public CaptionItem CaptionRegistries { get; set; } = new CaptionItem("Plugin Registries");
@@ -328,8 +320,6 @@ public class PluginUIOptions : EditableOptionsBase
                                                        IsVisible = false
                                                    };
 
-    [DontSave]
-    public SpacerItem Spacer4 { get; set; } = new SpacerItem();
 
     [DontSave]
     public CaptionItem CaptionLatestReleases { get; set; } = new CaptionItem("Latest Releases");
