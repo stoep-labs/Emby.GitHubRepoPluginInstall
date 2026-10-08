@@ -21,9 +21,34 @@ public class PluginUIOptions : EditableOptionsBase
         ".readOnlyContent:has(#ghrpi-wide),.readOnlyContent:has(#ghrpi-wide) form{max-width:none}" +
         "</style>";
 
+    // Emby 4.10's generic plugin page throws while setting the title (genericui.js getTitle reads
+    // item.Caption before the page data arrives), which aborts the menu highlight. This hidden image's
+    // onerror registers one document-wide viewshow hook that highlights the menu entry matching the
+    // current /genericui route; it does nothing when the right entry is already highlighted
+    internal const string MenuHighlightFix =
+        "<img src=\"data:,\" alt=\"\" style=\"display:none\" onerror=\"" +
+        "if(!window.__ghrpiNav){window.__ghrpiNav=1;" +
+        "var fix=function(){try{" +
+        "var cur=decodeURIComponent(location.hash.split('#!')[1]||'').toLowerCase();" +
+        "if(cur.indexOf('/genericui')!==0)return;" +
+        "var seen=[],opts=document.querySelectorAll('.navMenuOption');" +
+        "for(var i=0;i<opts.length;i++){var c=opts[i].parentElement;" +
+        "while(c&&!(c.items&&c.getElement))c=c.parentElement;" +
+        "if(!c||seen.indexOf(c)>=0)continue;seen.push(c);" +
+        "for(var j=0;j<c.items.length;j++){var it=c.items[j],id=it.navMenuId||(it.href?'/'+it.href:'');" +
+        "if(decodeURIComponent(id).toLowerCase()!==cur)continue;" +
+        "var el=c.getElement(j);if(!el||el.classList.contains('navMenuOption-selected'))return;" +
+        "var old=document.querySelectorAll('.navMenuOption.navMenuOption-selected');" +
+        "for(var k=0;k<old.length;k++)old[k].classList.remove('navMenuOption-selected');" +
+        "el.classList.add('navMenuOption-selected');return;}}" +
+        "}catch(e){}};" +
+        "var run=function(){[0,250,1000].forEach(function(t){setTimeout(fix,t);});};" +
+        "document.addEventListener('viewshow',run);run();}" +
+        "\">";
+
     [DontSave]
     public override string EditorDescription =>
-        "This plugin allows you to download and install plugins from GitHub repositories." + WideLayoutStyle;
+        "This plugin allows you to download and install plugins from GitHub repositories." + WideLayoutStyle + MenuHighlightFix;
 
     [DontSave]
     public CaptionItem UpdatesBanner { get; set; } = new CaptionItem("")
