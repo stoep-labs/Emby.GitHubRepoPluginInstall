@@ -13,5 +13,6 @@ public interface IGitHubApiClient
     Task<List<GitHubRelease>> GetLatestReleasesAsync(List<ReposToProcess> repositories, CancellationToken cancellationToken = default);
     Task<GitHubCommit> GetCommitDetailsAsync(GitHubRelease release, CancellationToken cancellationToken = default);
     Task<string> DownloadReleaseAsync(GitHubRelease release, string destinationPath, IProgress<double> progress = null, CancellationToken cancellationToken = default);
+    Task<(string TempPath, string FileName)> DownloadReleaseToTempAsync(GitHubRelease release, string destinationPath, CancellationToken cancellationToken = default);
     Task<bool> ValidateRepositoryAsync(string owner, string repository, CancellationToken cancellationToken = default);
 }

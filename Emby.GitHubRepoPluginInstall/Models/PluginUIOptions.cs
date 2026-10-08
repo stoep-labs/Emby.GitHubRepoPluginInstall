@@ -162,14 +162,14 @@ public class PluginUIOptions : EditableOptionsBase
                 status.visible      = true;
             }
 
-            var lastVersionDownloaded =
-                options.columns.FirstOrDefault(e => e.dataField == nameof(ReposToProcess.LastVersionDownloaded));
-            if (lastVersionDownloaded != null)
+            var installedVersion =
+                options.columns.FirstOrDefault(e => e.dataField == nameof(ReposToProcess.InstalledVersion));
+            if (installedVersion != null)
             {
-                lastVersionDownloaded.caption      = "Last Version Downloaded";
-                lastVersionDownloaded.width        = 190;
-                lastVersionDownloaded.visibleIndex = 9;
-                lastVersionDownloaded.visible      = true;
+                installedVersion.caption      = "Installed Version";
+                installedVersion.width        = 190;
+                installedVersion.visibleIndex = 9;
+                installedVersion.visible      = true;
             }
 
             var latestVersion =

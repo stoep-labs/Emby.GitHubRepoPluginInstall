@@ -210,6 +210,36 @@ public class GitHubApiClient : IDisposable, IGitHubApiClient
 
     public async Task<string> DownloadReleaseAsync(GitHubRelease release, string destinationPath, IProgress<double> progress = null, CancellationToken cancellationToken = default)
     {
+        var (tempPath, fileName) = await DownloadReleaseToTempAsync(release, destinationPath, cancellationToken).ConfigureAwait(false);
+        var fullPath = Path.Combine(destinationPath, fileName);
+
+        try
+        {
+            if (File.Exists(fullPath)) File.Delete(fullPath);
+            File.Move(tempPath, fullPath);
+        }
+        catch (Exception ex)
+        {
+            if (File.Exists(tempPath))
+                try
+                {
+                    File.Delete(tempPath);
+                }
+                catch
+                {
+                    // Ignore cleanup errors
+                }
+
+            throw new Exception($"Error downloading release: {ex.Message}", ex);
+        }
+
+        return fileName;
+    }
+
+    /// <summary>Downloads the release DLL next to its final location as <c>name.dll.temp</c>, which Emby never loads.</summary>
+    /// <returns>The temp file path and the DLL file name it should be installed as.</returns>
+    public async Task<(string TempPath, string FileName)> DownloadReleaseToTempAsync(GitHubRelease release, string destinationPath, CancellationToken cancellationToken = default)
+    {
         var dllAsset = release.Assets?.FirstOrDefault(x => x.IsDll);
         if (dllAsset == null)
         {
@@ -231,7 +261,6 @@ public class GitHubApiClient : IDisposable, IGitHubApiClient
         _logger.Debug($"Using download URL: {downloadUrl}");
 
         var fileName = downloadUrl == dllAsset.Url ? dllAsset.Name : Path.GetFileName(downloadUrl);
-        var fullPath = Path.Combine(destinationPath, fileName);
         var tempPath = Path.Combine(destinationPath, $"{fileName}.temp");
 
         try
@@ -248,10 +277,6 @@ public class GitHubApiClient : IDisposable, IGitHubApiClient
             {
                 await response.Content.CopyToAsync(fs, cancellationToken).ConfigureAwait(false);
             }
-
-            // If download was successful, replace the existing file
-            if (File.Exists(fullPath)) File.Delete(fullPath);
-            File.Move(tempPath, fullPath);
         }
         catch (Exception ex)
         {
@@ -269,7 +294,7 @@ public class GitHubApiClient : IDisposable, IGitHubApiClient
             throw new Exception($"Error downloading release: {ex.Message}", ex);
         }
 
-        return fileName;
+        return (tempPath, fileName);
     }
 
     public async Task<bool> ValidateRepositoryAsync(string owner, string repository, CancellationToken cancellationToken = default)
