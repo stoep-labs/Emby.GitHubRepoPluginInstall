@@ -140,7 +140,7 @@ public class InstalledPluginTests
     public async Task Install_RefusesToDowngradeANewerInstalledPlugin()
     {
         using var box = new Sandbox();
-        var existing = new InstalledPlugin { Name = "Plugin", AssemblyName = box.Dll.Name, Version = new Version(99, 0), FilePath = Path.Combine(box.Dir, "New.dll") };
+        var existing = new InstalledPlugin { Name = "Plugin", AssemblyName = box.Dll.Name, Version = new Version(box.Dll.Version.Major + 1, 0), FilePath = Path.Combine(box.Dir, "New.dll") };
         var repo = new ReposToProcess();
 
         var result = await Install(box, existing, repo, allowDowngrade: false);
@@ -155,7 +155,7 @@ public class InstalledPluginTests
     public async Task Install_DowngradesWhenAllowed()
     {
         using var box = new Sandbox();
-        var existing = new InstalledPlugin { Name = "Plugin", AssemblyName = box.Dll.Name, Version = new Version(99, 0), FilePath = Path.Combine(box.Dir, "New.dll") };
+        var existing = new InstalledPlugin { Name = "Plugin", AssemblyName = box.Dll.Name, Version = new Version(box.Dll.Version.Major + 1, 0), FilePath = Path.Combine(box.Dir, "New.dll") };
 
         var result = await Install(box, existing, new ReposToProcess(), allowDowngrade: true);
 
