@@ -130,7 +130,17 @@ public class PluginUIOptions : EditableOptionsBase
                 lastVersionDownloaded.visible      = true;
             }
 
-            var preRelCol = options.columns.FirstOrDefault(e => e.dataField == nameof(ReposToProcess.GetPreRelease));
+            var latestVersion =
+                options.columns.FirstOrDefault(e => e.dataField == nameof(ReposToProcess.LatestVersion));
+            if (latestVersion != null)
+            {
+                latestVersion.caption      = "Latest Version";
+                latestVersion.width        = 150;
+                latestVersion.visibleIndex = 10;
+                latestVersion.visible      = true;
+            }
+
+            var preRelCol =options.columns.FirstOrDefault(e => e.dataField == nameof(ReposToProcess.GetPreRelease));
             if (preRelCol != null)
             {
                 preRelCol.caption      = "Get PreRelease";

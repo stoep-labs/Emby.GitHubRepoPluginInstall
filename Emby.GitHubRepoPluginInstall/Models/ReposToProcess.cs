@@ -1,5 +1,7 @@
 ﻿using System;
 using System.ComponentModel;
+using System.Linq;
+using Emby.GitHubRepoPluginInstall.GithubAPI;
 
 namespace Emby.GitHubRepoPluginInstall.Models;
 
@@ -21,6 +23,35 @@ public class ReposToProcess
 
     public string LastVersionDownloaded { get; set; }
     public string FileName              { get; set; }
+
+    // Latest release info, persisted so the UI can render without calling GitHub
+    public string          LatestVersion       { get; set; }
+    public DateTimeOffset? LatestPublishedAt   { get; set; }
+    public bool            LatestIsPreRelease  { get; set; }
+    public bool            LatestHasDll        { get; set; }
+    public string          LatestReleaseNotes  { get; set; }
+
+    public void ApplyLatestRelease(GitHubRelease release)
+    {
+        LastDateTimeChecked = DateTime.UtcNow;
+        if (release == null) return;
+
+        LatestVersion      = release.TagName;
+        LatestPublishedAt  = release.PublishedAt;
+        LatestIsPreRelease = release.PreRelease;
+        LatestHasDll       = release.Assets?.Any(x => x.IsDll) == true;
+        LatestReleaseNotes = string.IsNullOrWhiteSpace(release.Body) ? release.Name : release.Body;
+    }
+
+    public void ClearLatestRelease()
+    {
+        LastDateTimeChecked = null;
+        LatestVersion      = null;
+        LatestPublishedAt  = null;
+        LatestIsPreRelease = false;
+        LatestHasDll       = false;
+        LatestReleaseNotes = null;
+    }
 
     private (string Owner, string Repository) RepositoryInfo
     {
