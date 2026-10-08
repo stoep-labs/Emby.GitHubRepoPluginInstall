@@ -93,7 +93,8 @@ public class PluginUIOptions : EditableOptionsBase
             var options = new DxGridOptions(new ReposToProcess(), "Id", false, true, true, false);
 
             options.selection.mode         = DxGridSelection.SelectionMode.single;
-            options.columnResizingMode     = DxGridOptions.ColumnResizingMode.nextColumn;
+            options.columnResizingMode     = DxGridOptions.ColumnResizingMode.widget;
+            options.stateStoring           = GridStateStoring("repos");
             options.heightMode             = DxGridOptions.GridHeightMode.medium;
             options.allowColumnReordering  = true;
             options.grouping.autoExpandAll = true;
@@ -257,7 +258,8 @@ public class PluginUIOptions : EditableOptionsBase
             var options = new DxGridOptions(new PluginRegistry(), "Id", false, true, true, false);
 
             options.selection.mode         = DxGridSelection.SelectionMode.single;
-            options.columnResizingMode     = DxGridOptions.ColumnResizingMode.nextColumn;
+            options.columnResizingMode     = DxGridOptions.ColumnResizingMode.widget;
+            options.stateStoring           = GridStateStoring("registries");
             options.heightMode             = DxGridOptions.GridHeightMode.small;
             options.allowColumnReordering  = true;
             options.focusedRowEnabled      = true;
@@ -327,6 +329,15 @@ public class PluginUIOptions : EditableOptionsBase
     [DisplayName("Releases")]
     [DontSave]
     public GenericItemList Releases { get; set; }
+
+    // DevExtreme keeps column widths, order and sorting in the browser's localStorage under this key
+    private static object GridStateStoring(string grid) =>
+        new Dictionary<string, object>
+        {
+            ["enabled"]    = true,
+            ["type"]       = "localStorage",
+            ["storageKey"] = "GitHubRepoPluginInstall." + grid + "Grid"
+        };
 
     /// <summary>Points a self-update entry that still tracks the legacy upstream repo at the current one.</summary>
     /// <returns><c>true</c> if an entry was changed and the options need saving.</returns>
