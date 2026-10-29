@@ -8,4 +8,5 @@ public interface ISecureStorage
     Task<string> UnprotectAsync(string protectedText);
     string Protect(string plainText);
     string Unprotect(string protectedText);
+    string Unprotect(string protectedText, out bool usedLegacyKey);
 }

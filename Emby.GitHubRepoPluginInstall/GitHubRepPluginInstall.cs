@@ -40,6 +40,16 @@ public class GitHubRepPluginInstall : BasePlugin, IHasThumbImage, IHasUIPages, I
         _jsonSerializer     = jsonSerializer;
         _logger             = logManager.GetLogger(PluginName);
         _pluginOptionsStore = new SecurePluginOptionsStore(applicationHost, _logger, Name);
+
+        // Loading the options migrates a machine-name-keyed token to the stable key while the hostname still matches
+        try
+        {
+            _pluginOptionsStore.GetOptions();
+        }
+        catch (Exception ex)
+        {
+            _logger.ErrorException("Failed to load plugin options", ex);
+        }
     }
 
     public override        Guid   Id          => new Guid("78185FEE-2187-4703-A8D0-4E625761D6E7");
